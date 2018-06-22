@@ -1,0 +1,91 @@
+MODULE DiscretizationModule
+
+  USE ParametersModule, ONLY: &
+    DP
+  
+  IMPLICIT NONE
+  PRIVATE
+
+  PUBLIC :: ComputeIncrement_Heat
+
+CONTAINS
+
+
+  SUBROUTINE ComputeIncrement_Heat &
+       ( nE, nX, nY, nZ, iE_L, iE_R, iX_L, iX_R, iY_L, iY_R, iZ_L, iZ_R, dX, dY, dZ, U, dU )
+
+    INTEGER,  INTENT(in)     :: nE, nX, nY, nZ
+    INTEGER,  INTENT(in)     :: iE_L, iX_L, iY_L, iZ_L
+    INTEGER,  INTENT(in)     :: iE_R, iX_R, iY_R, iZ_R
+    REAL(DP), INTENT(in)    :: dX, dY, dZ
+    REAL(DP), INTENT(inout) :: U (1:nE,0:nX+1,0:nY+1,0:nZ+1)
+    REAL(DP), INTENT(out)   :: dU(1:nE,1:nX+0,1:nY+0,1:nZ+0)
+
+    INTEGER :: iE, iX, iY, iZ
+    REAL(DP) :: H
+
+    H=1
+
+    CALL ApplyBoundaryConditions( nE, nX, nY, nZ, iE_L, iE_R, iX_L, iX_R, iY_L, iY_R, iZ_L, iZ_R, U )
+    
+    DO iZ = iZ_L, iZ_R
+      DO iY = iY_L, iY_R
+        DO iX = iX_L, iX_R
+          DO iE = iE_L, iE_R
+              
+             dU(iE,iX,iY,iZ) = (H/(dx*dx))*(U(iE,iX-1,iY,iZ) - 2*U(iE,iX,iY,iZ) + U(iE,iX+1,iY,iZ)) &
+                + (H/(dy*dy))*(U(iE,iX,iY-1,iZ) - 2*U(iE,iX,iY,iZ) + U(iE,iX,iY+1,iZ)) &
+                + (H/(dz*dz))*(U(iE,iX,iY,iZ-1) - 2*U(iE,iX,iY,iZ) + U(iE,iX,iY,iZ+1))
+             
+          ENDDO
+        ENDDO
+      ENDDO
+    ENDDO
+ 
+    
+  END SUBROUTINE ComputeIncrement_Heat
+
+
+  SUBROUTINE ApplyBoundaryConditions &
+    ( nE, nX, nY, nZ, iE_L, iE_R, iX_L, iX_R, iY_L, iY_R, iZ_L, iZ_R, U )
+
+    INTEGER,  INTENT(in)    :: nE, nX, nY, nZ
+    INTEGER,  INTENT(in)    :: iE_L, iX_L, iY_L, iZ_L
+    INTEGER,  INTENT(in)    :: iE_R, iX_R, iY_R, iZ_R
+    REAL(DP), INTENT(inout) :: U(1:nE,0:nX+1,0:nY+1,0:nZ+1)
+
+    ! --- X-Dimension
+    
+      IF (iX_L == 1) THEN
+         U(iE_L:iE_R, 0, iY_L:iY_R, iZ_L:iZ_R) = U(iE_L:iE_R, nX, iY_L:iY_R, iZ_L:iZ_R)
+      ENDIF
+
+      IF (iX_R == nX) THEN
+         U(iE_L:iE_R, nX+1, iY_L:iY_R, iZ_L:iZ_R) = U(iE_L:iE_R, 1, iY_L:iY_R, iZ_L:iZ_R)
+      ENDIF
+    
+    ! --- Y-Dimesnion
+
+      IF (iY_L == 1) THEN
+         U(iE_L:iE_R, iX_L:iX_R, 0, iZ_L:iZ_R) = U(iE_L:iE_R, iX_L:iX_R, nY, iZ_L:iZ_R)
+      ENDIF
+
+      IF (iX_R == nX) THEN
+         U(iE_L:iE_R, iX_L:iX_R, nY+1, iZ_L:iZ_R) = U(iE_L:iE_R, iX_L:iX_R, 1, iZ_L:iZ_R)
+      ENDIF
+
+    ! --- Z-Dimension
+
+      IF (iY_L == 1) THEN
+         U(iE_L:iE_R, iX_L:iX_R, iY_L:iY_R, 0) = U(iE_L:iE_R, iX_L:iX_R, iY_L:iY_R, nZ)
+      ENDIF
+
+      IF (iX_R == nX) THEN
+         U(iE_L:iE_R, iX_L:iX_R, iY_L:iY_R, nZ+1) = U(iE_L:iE_R, iX_L:iX_R, iY_L:iY_R, 1)
+      ENDIF
+    
+    
+  END SUBROUTINE ApplyBoundaryConditions
+
+  
+END MODULE DiscretizationModule
