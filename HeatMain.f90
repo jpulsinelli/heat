@@ -12,8 +12,8 @@ PROGRAM Heat
   INCLUDE 'mpif.h'
 
   INTEGER :: iE, iX, iY, iZ, mpierr, iCycle
-  REAL(DP) :: dX, dY, dZ, t, dt, wTime
-  REAL(DP), ALLOCATABLE, DIMENSION(:,:,:,:) :: U, dU
+  REAL(DP) :: dX, dY, dZ, t, dt, wTime, err
+  REAL(DP), ALLOCATABLE, DIMENSION(:,:,:,:) :: U, dU, analytic, diff, Ureal
 
   CALL MPI_INIT( mpierr )
   PRINT*, "mpierr = ", mpierr
@@ -24,6 +24,9 @@ PROGRAM Heat
   
   ALLOCATE( U (1:nE,0:nX+1,0:nY+1,0:nZ+1) )
   ALLOCATE( dU(1:nE,1:nX+0,1:nY+0,1:nZ+0) )
+  ALLOCATE( analytic(1:nE,1:nX,1:nY,1:nZ) )
+  ALLOCATE( Ureal(1:nE,1:nX,1:nY,1:nZ) )
+  ALLOCATE( diff(1:nE,1:nX,1:nY,1:nZ) )
   
   wTime = MPI_WTIME( )
   
@@ -33,21 +36,22 @@ PROGRAM Heat
       DO iX = 1, nX
         DO iE = 1, nE
 
-          U(iE,iX,iY,iZ) = SIN( 2.0_DP * Pi * ( X_L + (DBLE(iX)-0.5_DP)*dX ) )
+           U(iE,iX,iY,iZ) = SIN( 2.0_DP * Pi * ( X_L + (DBLE(iX)-0.5_DP)*dX ) )
+           analytic(iE,iX,iY,iZ) = SIN( 2.0_DP * Pi * ( X_L + (DBLE(iX)-0.5_DP)*dX ) )*exp(-4*pi*pi*t_end)
            
-        END DO
+        END DO 
       END DO
     END DO
   END DO
 ! $OMP END PARALLEL
-  
+
   wTime = MPI_WTIME( ) - wTime
 
   PRINT*, "wTime (allocation loop) = ", wTime
  
   t = 0.0_DP
   dt= C*dx*dx
-
+ 
   wTime = MPI_WTIME( )
 
   iCycle = 0
@@ -68,18 +72,24 @@ PROGRAM Heat
 
   PRINT*, "wTime (computational loop) = ", wTime
   
+  Ureal = U(1:nE,1:nX,1:nY,1:nz)
+  diff = abs(Ureal - analytic)
+  err = maxval(diff)
+ 
   OPEN(unit=10, file = 'HeatFinal.dat')
   WRITE(10,*) U(1,:,1,1)
   CLOSE(10)
-  DEALLOCATE( U, dU )
-
+  DEALLOCATE( U, dU, analytic, diff, Ureal )
+  
+  
   CALL MPI_FINALIZE( mpierr )
 
   WRITE(*,*) 'Advanced to time',t,'in',iCycle, 'steps'
   WRITE(*,*) 'nE=',nE
   WRITE(*,*) 'nX=',nX
-  WRITE(*,*) 'nY=',nY
+  WRITE(*,*) 'nY=',nY 
   WRITE(*,*) 'nZ=',nZ
   WRITE(*,*) 'dt=',dt
+  WRITE(*,*) 'error=',err
 
 END PROGRAM Heat
