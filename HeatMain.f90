@@ -25,6 +25,8 @@ PROGRAM Heat
   ALLOCATE( U (1:nE,0:nX+1,0:nY+1,0:nZ+1) )
   ALLOCATE( dU(1:nE,1:nX+0,1:nY+0,1:nZ+0) )
   
+  wTime = MPI_WTIME( )
+  
 ! $OMP PARALLEL DO COLLAPSE(4)
   DO iZ = 1, nZ
     DO iY = 1, nY
@@ -38,9 +40,12 @@ PROGRAM Heat
     END DO
   END DO
 ! $OMP END PARALLEL
+  
+  wTime = MPI_WTIME( ) - wTime
 
+  PRINT*, "wTime (allocation loop) = ", wTime
+ 
   t = 0.0_DP
-  WRITE(*,*) C
   dt= C*dx*dx
 
   wTime = MPI_WTIME( )
@@ -61,9 +66,7 @@ PROGRAM Heat
 
   wTime = MPI_WTIME( ) - wTime
 
-  PRINT*, "wTime = ", wTime
- 
-  WRITE(*,*)t
+  PRINT*, "wTime (computational loop) = ", wTime
   
   OPEN(unit=10, file = 'HeatFinal.dat')
   WRITE(10,*) U(1,:,1,1)
@@ -71,5 +74,12 @@ PROGRAM Heat
   DEALLOCATE( U, dU )
 
   CALL MPI_FINALIZE( mpierr )
+
+  WRITE(*,*) 'Advanced to time',t,'in',iCycle, 'steps'
+  WRITE(*,*) 'nE=',nE
+  WRITE(*,*) 'nX=',nX
+  WRITE(*,*) 'nY=',nY
+  WRITE(*,*) 'nZ=',nZ
+  WRITE(*,*) 'dt=',dt
 
 END PROGRAM Heat
