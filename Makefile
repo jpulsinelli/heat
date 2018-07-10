@@ -1,4 +1,4 @@
-MACHINE = juliana
+MACHINE = summit_gnu
 
 OPT_LEVEL = OPTIMIZE
 FLAGS     = $(FLAGS_$(OPT_LEVEL))
