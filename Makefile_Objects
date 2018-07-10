@@ -1,0 +1,3 @@
+objects = \
+  ParametersModule.o \
+  DiscretizationModule.o
