@@ -5,13 +5,14 @@ PROGRAM Heat
        X_L, X_R, Y_L, Y_R, Z_L, Z_R, t_end, C
   USE DiscretizationModule, ONLY: &
        ComputeIncrement_Heat
+
   USE OMP_LIB
   
   IMPLICIT NONE
 
   INCLUDE 'mpif.h'
 
-  INTEGER :: iE, iX, iY, iZ, mpierr, iCycle
+  INTEGER :: iE, iX, iY, iZ, mpierr, iCycle, threads
   REAL(DP) :: dX, dY, dZ, t, dt, wTime, err
   REAL(DP), ALLOCATABLE, DIMENSION(:,:,:,:) :: U, dU, analytic, diff, Ureal
 
@@ -29,23 +30,27 @@ PROGRAM Heat
   ALLOCATE( diff(1:nE,1:nX,1:nY,1:nZ) )
   
   wTime = MPI_WTIME( )
-  
-! $OMP PARALLEL DO COLLAPSE(4)
+
+ CALL OMP_SET_NUM_THREADS(2)
+
+  !$OMP PARALLEL DO COLLAPSE(4)
   DO iZ = 1, nZ
     DO iY = 1, nY
       DO iX = 1, nX
         DO iE = 1, nE
-
+            
            U(iE,iX,iY,iZ) = SIN( 2.0_DP * Pi * ( X_L + (DBLE(iX)-0.5_DP)*dX ) )
            analytic(iE,iX,iY,iZ) = SIN( 2.0_DP * Pi * ( X_L + (DBLE(iX)-0.5_DP)*dX ) )*exp(-4*pi*pi*t_end)
-           
-        END DO 
-      END DO
-    END DO
-  END DO
-! $OMP END PARALLEL
+           threads = OMP_GET_NUM_THREADS()
+            
+        ENDDO
+      ENDDO
+    ENDDO
+ ENDDO
+!$OMP END PARALLEL DO
 
   wTime = MPI_WTIME( ) - wTime
+
 
   PRINT*, "wTime (allocation loop) = ", wTime
  
@@ -55,6 +60,8 @@ PROGRAM Heat
   wTime = MPI_WTIME( )
 
   iCycle = 0
+
+  
   DO WHILE( t < t_end )
 
     iCycle = iCycle + 1
@@ -93,3 +100,4 @@ PROGRAM Heat
   WRITE(*,*) 'error=',err
 
 END PROGRAM Heat
+
