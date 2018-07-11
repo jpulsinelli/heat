@@ -1,7 +1,8 @@
 MODULE DiscretizationModule
 
   USE ParametersModule, ONLY: &
-    DP
+       DP
+  USE OMP_LIB
   
   IMPLICIT NONE
   PRIVATE
@@ -27,7 +28,7 @@ CONTAINS
     H=1
 
     CALL ApplyBoundaryConditions( nE, nX, nY, nZ, iE_L, iE_R, iX_L, iX_R, iY_L, iY_R, iZ_L, iZ_R, U )
-    
+ !$OMP PARALLEL DO COLLAPSE(4) 
     DO iZ = iZ_L, iZ_R
       DO iY = iY_L, iY_R
         DO iX = iX_L, iX_R
@@ -41,7 +42,7 @@ CONTAINS
         ENDDO
       ENDDO
     ENDDO
- 
+ !$OMP END PARALLEL DO
     
   END SUBROUTINE ComputeIncrement_Heat
 
