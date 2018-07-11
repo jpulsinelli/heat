@@ -1,6 +1,6 @@
 MACHINE = summit_gnu
 
-OPT_LEVEL = OPTIMIZE
+OPT_LEVEL = DEBUG
 FLAGS     = $(FLAGS_$(OPT_LEVEL))
 
 include ./Makefile_Main
