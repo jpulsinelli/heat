@@ -10,14 +10,14 @@ PROGRAM Heat
   
   IMPLICIT NONE
 
-  INCLUDE 'mpif.h'
+!  INCLUDE 'mpif.h'
 
   INTEGER :: iE, iX, iY, iZ, mpierr, iCycle, threads
   REAL(DP) :: dX, dY, dZ, t, dt, wTime, err
   REAL(DP), ALLOCATABLE, DIMENSION(:,:,:,:) :: U, dU, analytic, diff, Ureal
 
-  CALL MPI_INIT( mpierr )
-  PRINT*, "mpierr = ", mpierr
+ ! CALL MPI_INIT( mpierr )
+ ! PRINT*, "mpierr = ", mpierr
 
   dX = ( X_R - X_L ) / DBLE( nX )
   dY = ( Y_R - Y_L ) / DBLE( nY )
@@ -29,9 +29,9 @@ PROGRAM Heat
   ALLOCATE( Ureal(1:nE,1:nX,1:nY,1:nZ) )
   ALLOCATE( diff(1:nE,1:nX,1:nY,1:nZ) )
   
-  wTime = MPI_WTIME( )
+!  wTime = MPI_WTIME( )
 
- CALL OMP_SET_NUM_THREADS(2)
+ CALL OMP_SET_NUM_THREADS(16)
 
   !$OMP PARALLEL DO COLLAPSE(4)
   DO iZ = 1, nZ
@@ -49,15 +49,15 @@ PROGRAM Heat
  ENDDO
 !$OMP END PARALLEL DO
 
-  wTime = MPI_WTIME( ) - wTime
+!  wTime = MPI_WTIME( ) - wTime
+write(*,*) threads
 
-
-  PRINT*, "wTime (allocation loop) = ", wTime
+ ! PRINT*, "wTime (allocation loop) = ", wTime
  
   t = 0.0_DP
   dt= C*dx*dx
  
-  wTime = MPI_WTIME( )
+ ! wTime = MPI_WTIME( )
 
   iCycle = 0
 
@@ -72,12 +72,15 @@ PROGRAM Heat
     U(1:nE,1:nX,1:nY,1:nZ) = U(1:nE,1:nX,1:nY,1:nZ) + dt * dU(1:nE,1:nX,1:nY,1:nZ)
     
     t = t + dt
+if (real(icycle)/100.0 == real(icycle/100)) then
+!write(*,*) icycle, MPI_WTIME()-wTime, t
+endif
 
   END DO
 
-  wTime = MPI_WTIME( ) - wTime
+ ! wTime = MPI_WTIME( ) - wTime
 
-  PRINT*, "wTime (computational loop) = ", wTime
+ ! PRINT*, "wTime (computational loop) = ", wTime
   
   Ureal = U(1:nE,1:nX,1:nY,1:nz)
   diff = abs(Ureal - analytic)
@@ -89,7 +92,7 @@ PROGRAM Heat
   DEALLOCATE( U, dU, analytic, diff, Ureal )
   
   
-  CALL MPI_FINALIZE( mpierr )
+ ! CALL MPI_FINALIZE( mpierr )
 
   WRITE(*,*) 'Advanced to time',t,'in',iCycle, 'steps'
   WRITE(*,*) 'nE=',nE

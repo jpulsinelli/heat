@@ -23,26 +23,26 @@ CONTAINS
     REAL(DP), INTENT(out)   :: dU(1:nE,1:nX+0,1:nY+0,1:nZ+0)
 
     INTEGER :: iE, iX, iY, iZ
-    REAL(DP) :: H
 
-    H=1
 
     CALL ApplyBoundaryConditions( nE, nX, nY, nZ, iE_L, iE_R, iX_L, iX_R, iY_L, iY_R, iZ_L, iZ_R, U )
- !$OMP PARALLEL DO COLLAPSE(4) 
+
+!$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(4) !SCHEDULE(STATIC,1)
     DO iZ = iZ_L, iZ_R
       DO iY = iY_L, iY_R
         DO iX = iX_L, iX_R
           DO iE = iE_L, iE_R
               
-             dU(iE,iX,iY,iZ) = (H/(dx*dx))*(U(iE,iX-1,iY,iZ) - 2*U(iE,iX,iY,iZ) + U(iE,iX+1,iY,iZ)) &
-                + (H/(dy*dy))*(U(iE,iX,iY-1,iZ) - 2*U(iE,iX,iY,iZ) + U(iE,iX,iY+1,iZ)) &
-                + (H/(dz*dz))*(U(iE,iX,iY,iZ-1) - 2*U(iE,iX,iY,iZ) + U(iE,iX,iY,iZ+1))
+             dU(iE,iX,iY,iZ) = (1/(dx*dx))*(U(iE,iX-1,iY,iZ) - 2*U(iE,iX,iY,iZ) + U(iE,iX+1,iY,iZ)) &
+                + (1/(dy*dy))*(U(iE,iX,iY-1,iZ) - 2*U(iE,iX,iY,iZ) + U(iE,iX,iY+1,iZ)) &
+                + (1/(dz*dz))*(U(iE,iX,iY,iZ-1) - 2*U(iE,iX,iY,iZ) + U(iE,iX,iY,iZ+1))
              
           ENDDO
         ENDDO
       ENDDO
     ENDDO
- !$OMP END PARALLEL DO
+
+!$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
     
   END SUBROUTINE ComputeIncrement_Heat
 
