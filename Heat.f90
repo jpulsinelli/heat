@@ -1,4 +1,4 @@
-PROGRAM Heat
+ PROGRAM Heat
 
   USE ParametersModule, ONLY: &
        DP, nE, nX, nY, nZ, Pi, &
@@ -10,14 +10,16 @@ PROGRAM Heat
   
   IMPLICIT NONE
 
-!  INCLUDE 'mpif.h'
+  INCLUDE 'mpif.h'
 
   INTEGER :: iE, iX, iY, iZ, mpierr, iCycle, threads
   REAL(DP) :: dX, dY, dZ, t, dt, wTime, err
   REAL(DP), ALLOCATABLE, DIMENSION(:,:,:,:) :: U, dU, analytic, diff, Ureal
 
- ! CALL MPI_INIT( mpierr )
- ! PRINT*, "mpierr = ", mpierr
+! $OMP TARGET DATA MAP(from:U)
+
+  CALL MPI_INIT( mpierr )
+  PRINT*, "mpierr = ", mpierr
 
   dX = ( X_R - X_L ) / DBLE( nX )
   dY = ( Y_R - Y_L ) / DBLE( nY )
@@ -29,11 +31,17 @@ PROGRAM Heat
   ALLOCATE( Ureal(1:nE,1:nX,1:nY,1:nZ) )
   ALLOCATE( diff(1:nE,1:nX,1:nY,1:nZ) )
   
-!  wTime = MPI_WTIME( )
+  wTime = MPI_WTIME( )
 
- CALL OMP_SET_NUM_THREADS(16)
+!$OMP PARALLEL
+ threads = OMP_GET_NUM_THREADS()
+!$OMP END PARALLEL
 
-  !$OMP PARALLEL DO COLLAPSE(4)
+
+ !CALL OMP_SET_NUM_THREADS(8)
+!$OMP TARGET DATA MAP(from:U)
+  !$OMP TARGET 
+!$OMP TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(4)
   DO iZ = 1, nZ
     DO iY = 1, nY
       DO iX = 1, nX
@@ -41,27 +49,29 @@ PROGRAM Heat
             
            U(iE,iX,iY,iZ) = SIN( 2.0_DP * Pi * ( X_L + (DBLE(iX)-0.5_DP)*dX ) )
            analytic(iE,iX,iY,iZ) = SIN( 2.0_DP * Pi * ( X_L + (DBLE(iX)-0.5_DP)*dX ) )*exp(-4*pi*pi*t_end)
-           threads = OMP_GET_NUM_THREADS()
+          ! threads = OMP_GET_NUM_THREADS()
             
         ENDDO
       ENDDO
     ENDDO
  ENDDO
-!$OMP END PARALLEL DO
-
-!  wTime = MPI_WTIME( ) - wTime
+!$OMP END TEAMS DISTRIBUTE PARALLEL DO
+!$OMP END TARGET
+!$OMP END TARGET DATA 
+!$OMP BARRIER
+  wTime = MPI_WTIME( ) - wTime
 write(*,*) threads
 
- ! PRINT*, "wTime (allocation loop) = ", wTime
+  PRINT*, "wTime (allocation loop) = ", wTime
  
   t = 0.0_DP
   dt= C*dx*dx
  
- ! wTime = MPI_WTIME( )
+  wTime = MPI_WTIME( )
 
   iCycle = 0
 
-  
+    ! $OMP TARGET! DATA MAP(tofrom:U)
   DO WHILE( t < t_end )
 
     iCycle = iCycle + 1
@@ -77,10 +87,12 @@ if (real(icycle)/100.0 == real(icycle/100)) then
 endif
 
   END DO
+! $OMP END TARGET
+! $OMP END TARGET DATA
 
- ! wTime = MPI_WTIME( ) - wTime
+  wTime = MPI_WTIME( ) - wTime
 
- ! PRINT*, "wTime (computational loop) = ", wTime
+  PRINT*, "wTime (computational loop) = ", wTime
   
   Ureal = U(1:nE,1:nX,1:nY,1:nz)
   diff = abs(Ureal - analytic)
@@ -92,7 +104,7 @@ endif
   DEALLOCATE( U, dU, analytic, diff, Ureal )
   
   
- ! CALL MPI_FINALIZE( mpierr )
+  CALL MPI_FINALIZE( mpierr )
 
   WRITE(*,*) 'Advanced to time',t,'in',iCycle, 'steps'
   WRITE(*,*) 'nE=',nE

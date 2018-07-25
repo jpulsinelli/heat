@@ -2,7 +2,7 @@ FORTRAN_mac_gnu          = gfortran
 FORTRAN_juliana          = mpif90 -fopenmp
 FORTRAN_sn1987b          = mpif90 -fopenmp
 FORTRAN_summit_gnu       = mpif90 -fopenmp
-FORTRAN_summit_xlf	 = xlf_r
+FORTRAN_summit_xlf	 = mpif90
 FORTRAN_summit_xlflang	 = mpif90 -fopenmp -fopenmp-targets=nvptx64-nvidia-cuda
 FORTRAN                  = $(FORTRAN_$(MACHINE))
 
