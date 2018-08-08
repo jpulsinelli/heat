@@ -1,4 +1,4 @@
- PROGRAM Heat
+  PROGRAM Heat
 
   USE ParametersModule, ONLY: &
        DP, nE, nX, nY, nZ, Pi, &
@@ -13,10 +13,8 @@
   INCLUDE 'mpif.h'
 
   INTEGER :: iE, iX, iY, iZ, mpierr, iCycle, threads
-  REAL(DP) :: dX, dY, dZ, t, dt, wTime, err
+  REAL(DP) :: dX, dY, dZ, t, dt, wTime, err, t_cell
   REAL(DP), ALLOCATABLE, DIMENSION(:,:,:,:) :: U, dU, analytic, diff, Ureal
-
-! $OMP TARGET DATA MAP(from:U)
 
   CALL MPI_INIT( mpierr )
   PRINT*, "mpierr = ", mpierr
@@ -33,32 +31,26 @@
   
   wTime = MPI_WTIME( )
 
-!$OMP PARALLEL
- threads = OMP_GET_NUM_THREADS()
-!$OMP END PARALLEL
 
-
- !CALL OMP_SET_NUM_THREADS(8)
+CALL OMP_SET_NUM_THREADS(16) !Unnecessary for GPU, helps with CPU
+!The following omp lines may mildly reduce CPU performance
 !$OMP TARGET DATA MAP(from:U)
-  !$OMP TARGET 
-!$OMP TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(4)
+!$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(4)
   DO iZ = 1, nZ
     DO iY = 1, nY
       DO iX = 1, nX
         DO iE = 1, nE
             
            U(iE,iX,iY,iZ) = SIN( 2.0_DP * Pi * ( X_L + (DBLE(iX)-0.5_DP)*dX ) )
-           analytic(iE,iX,iY,iZ) = SIN( 2.0_DP * Pi * ( X_L + (DBLE(iX)-0.5_DP)*dX ) )*exp(-4*pi*pi*t_end)
-          ! threads = OMP_GET_NUM_THREADS()
+           threads = OMP_GET_NUM_THREADS()
             
         ENDDO
       ENDDO
     ENDDO
  ENDDO
-!$OMP END TEAMS DISTRIBUTE PARALLEL DO
-!$OMP END TARGET
+!$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
 !$OMP END TARGET DATA 
-!$OMP BARRIER
+
   wTime = MPI_WTIME( ) - wTime
 write(*,*) threads
 
@@ -71,29 +63,35 @@ write(*,*) threads
 
   iCycle = 0
 
-    ! $OMP TARGET! DATA MAP(tofrom:U)
-  DO WHILE( t < t_end )
+ ! DO WHILE( t < t_end )
+  DO WHILE(iCycle < 100)
 
     iCycle = iCycle + 1
   
     CALL ComputeIncrement_Heat &
          ( nE, nX, nY, nZ, 1, nE, 1, nX, 1, nY, 1, nZ, dX, dY, dZ, U, dU )
-
+ 
     U(1:nE,1:nX,1:nY,1:nZ) = U(1:nE,1:nX,1:nY,1:nZ) + dt * dU(1:nE,1:nX,1:nY,1:nZ)
     
     t = t + dt
-if (real(icycle)/100.0 == real(icycle/100)) then
-!write(*,*) icycle, MPI_WTIME()-wTime, t
-endif
 
   END DO
-! $OMP END TARGET
-! $OMP END TARGET DATA
+
 
   wTime = MPI_WTIME( ) - wTime
-
+ 
   PRINT*, "wTime (computational loop) = ", wTime
-  
+
+ DO iZ = 1, nZ
+    DO iY = 1, nY
+      DO iX = 1, nX
+        DO iE = 1, nE
+           analytic(iE,iX,iY,iZ) = SIN( 2.0_DP * Pi * ( X_L + (DBLE(iX)-0.5_DP)*dX ) )*exp(-4*pi*pi*t)
+        ENDDO
+      ENDDO
+    ENDDO
+ ENDDO
+
   Ureal = U(1:nE,1:nX,1:nY,1:nz)
   diff = abs(Ureal - analytic)
   err = maxval(diff)
@@ -102,11 +100,12 @@ endif
   WRITE(10,*) U(1,:,1,1)
   CLOSE(10)
   DEALLOCATE( U, dU, analytic, diff, Ureal )
-  
+  t_cell=wTime/nX/nY/nZ/nE/iCycle
   
   CALL MPI_FINALIZE( mpierr )
 
   WRITE(*,*) 'Advanced to time',t,'in',iCycle, 'steps'
+  WRITE(*,*) 'Time per cell', t_cell
   WRITE(*,*) 'nE=',nE
   WRITE(*,*) 'nX=',nX
   WRITE(*,*) 'nY=',nY 

@@ -26,9 +26,9 @@ CONTAINS
 
 
     CALL ApplyBoundaryConditions( nE, nX, nY, nZ, iE_L, iE_R, iX_L, iX_R, iY_L, iY_R, iZ_L, iZ_R, U )
-!$OMP TARGET DATA MAP(to:U) MAP(from:dU)
-!$OMP TARGET TEAMS
-!$OMP DISTRIBUTE PARALLEL DO COLLAPSE(4) SCHEDULE(STATIC,1)
+! $OMP TARGET DATA MAP(to:U) MAP(from:dU)  !GPU only
+! $OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(4) !GPU only
+!$OMP PARALLEL DO COLLAPSE(4) !CPU only
     DO iZ = iZ_L, iZ_R
       DO iY = iY_L, iY_R
         DO iX = iX_L, iX_R
@@ -42,10 +42,9 @@ CONTAINS
         ENDDO
       ENDDO
     ENDDO
-!$OMP END DISTRIBUTE PARALLEL DO
-
-!$OMP END TARGET TEAMS 
-!$OMP END TARGET DATA
+!$OMP END PARALLEL DO
+! $OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
+! $OMP END TARGET DATA
     
   END SUBROUTINE ComputeIncrement_Heat
 
@@ -74,17 +73,17 @@ CONTAINS
          U(iE_L:iE_R, iX_L:iX_R, 0, iZ_L:iZ_R) = U(iE_L:iE_R, iX_L:iX_R, nY, iZ_L:iZ_R)
       ENDIF
 
-      IF (iX_R == nX) THEN
+      IF (iY_R == nY) THEN
          U(iE_L:iE_R, iX_L:iX_R, nY+1, iZ_L:iZ_R) = U(iE_L:iE_R, iX_L:iX_R, 1, iZ_L:iZ_R)
       ENDIF
 
     ! --- Z-Dimension
 
-      IF (iY_L == 1) THEN
+      IF (iZ_L == 1) THEN
          U(iE_L:iE_R, iX_L:iX_R, iY_L:iY_R, 0) = U(iE_L:iE_R, iX_L:iX_R, iY_L:iY_R, nZ)
       ENDIF
 
-      IF (iX_R == nX) THEN
+      IF (iZ_R == nZ) THEN
          U(iE_L:iE_R, iX_L:iX_R, iY_L:iY_R, nZ+1) = U(iE_L:iE_R, iX_L:iX_R, iY_L:iY_R, 1)
       ENDIF
     
